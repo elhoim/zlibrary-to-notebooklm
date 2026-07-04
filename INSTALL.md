@@ -1,76 +1,76 @@
-# 安装指南
+# Installation Guide
 
-## 系统要求
+## System Requirements
 
-- Python 3.8 或更高版本
+- Python 3.8 or higher
 - macOS / Linux / Windows
-- 网络连接
+- Internet connection
 
-## 安装步骤
+## Installation Steps
 
-### 1. 克隆仓库
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/zlibrary-to-notebooklm.git
+git clone https://github.com/zstmfhy/zlibrary-to-notebooklm.git
 cd zlibrary-to-notebooklm
 ```
 
-### 2. 安装 Python 依赖
+### 2. Install the Python dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. 安装 Playwright 浏览器
+### 3. Install the Playwright browser
 
 ```bash
 playwright install chromium
 ```
 
-### 4. 确保 NotebookLM CLI 已安装
+### 4. Make sure the NotebookLM CLI is installed
 
 ```bash
-# 检查 notebooklm 命令是否可用
+# Check whether the notebooklm command is available
 notebooklm --version
 
-# 如果未安装，请先安装 NotebookLM CLI
+# If it is not installed, install the NotebookLM CLI first
 npm install -g @google-notebooklm/cli
 ```
 
-## 验证安装
+## Verify the Installation
 
 ```bash
-# 测试登录脚本（不会实际登录）
+# Test the login script (does not actually log in)
 python3 scripts/login.py --help
 
-# 测试上传脚本（不会实际上传）
+# Test the upload script (does not actually upload)
 python3 scripts/upload.py --help
 ```
 
-## 故障排除
+## Troubleshooting
 
-### Playwright 安装失败
+### Playwright installation fails
 
 ```bash
-# 手动下载浏览器
+# Download the browser manually
 playwright install --with-deps chromium
 ```
 
-### Python 版本问题
+### Python version issues
 
 ```bash
-# 使用 pyenv 安装 Python 3.8+
+# Install Python 3.8+ with pyenv
 pyenv install 3.11.0
 pyenv global 3.11.0
 ```
 
-### 权限问题
+### Permission issues
 
 ```bash
-# macOS/Linux: 添加执行权限
+# macOS/Linux: add execute permission
 chmod +x scripts/*.py
 ```
 
-## 下一步
+## Next Steps
 
-安装完成后，请查看 [快速开始](README.md#快速开始)
+Once installation is complete, see [Quick Start](README.md#-use-as-claude-skill-recommended)

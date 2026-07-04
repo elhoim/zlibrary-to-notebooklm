@@ -1,58 +1,58 @@
-# 故障排查指南
+# Troubleshooting Guide
 
-本文档帮助您解决使用 zlibrary-to-notebooklm Skill 时可能遇到的常见问题。
+This document helps you solve common problems you may run into while using the zlibrary-to-notebooklm Skill.
 
 ---
 
-## 🔐 登录问题
+## 🔐 Login Issues
 
-### 问题：未找到登录会话
+### Issue: Login session not found
 
-**症状：**
+**Symptom:**
 ```
-❌ 未找到会话状态
-💡 请先运行: python3 /tmp/zlibrary_login.py
+❌ Session state not found
+💡 Please run first: python3 scripts/login.py
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **首次使用需要登录**
+1. **First-time use requires a login**
    ```bash
    cd ~/.claude/skills/zlibrary-to-notebooklm
    python3 scripts/login.py
    ```
 
-2. **登录步骤：**
-   - 浏览器会自动打开 Z-Library
-   - 在浏览器中完成登录
-   - 回到终端，按 ENTER 键
-   - 会话已保存！
+2. **Login steps:**
+   - The browser opens Z-Library automatically
+   - Complete the login in the browser
+   - Return to the terminal and press ENTER
+   - The session is saved!
 
-3. **验证登录状态：**
+3. **Verify the login state:**
    ```bash
    ls -lh ~/.zlibrary/storage_state.json
    ```
-   应该显示一个约 2KB 的文件
+   It should show a file of about 2KB
 
-### 问题：登录失败
+### Issue: Login fails
 
-**症状：**
-- 浏览器打开但无法登录
-- 提示"网络错误"
+**Symptom:**
+- The browser opens but you cannot log in
+- A "network error" is shown
 
-**解决方案：**
+**Solution:**
 
-1. **检查网络连接**
+1. **Check your network connection**
    ```bash
    ping -c 3 zh.zlib.li
    ```
 
-2. **尝试备用域名**
+2. **Try a backup domain**
    - https://zh.zlib.li/
    - https://z-lib.org/
    - https://zlibrary.org/
 
-3. **清除缓存重试**
+3. **Clear the cache and retry**
    ```bash
    rm ~/.zlibrary/storage_state.json
    python3 scripts/login.py
@@ -60,393 +60,393 @@
 
 ---
 
-## 📥 下载问题
+## 📥 Download Issues
 
-### 问题：找不到下载按钮
+### Issue: Download button not found
 
-**症状：**
+**Symptom:**
 ```
-❌ 未找到下载按钮
+❌ No download button found
 ```
 
-**可能原因：**
-1. Z-Library 页面结构变化
-2. 需要登录
-3. 网络问题
+**Possible causes:**
+1. The Z-Library page structure changed
+2. Login required
+3. Network issue
 
-**解决方案：**
+**Solution:**
 
-1. **检查登录状态**
+1. **Check the login state**
    ```bash
    ls ~/.zlibrary/storage_state.json
    ```
 
-2. **手动打开页面确认**
-   - 复制链接到浏览器打开
-   - 确认能正常访问和下载
+2. **Open the page manually to confirm**
+   - Copy the link into a browser and open it
+   - Confirm you can access and download normally
 
-3. **使用备用方案**
-   - 手动下载 PDF 到 `~/Downloads/`
-   - 使用 `notebooklm source add` 上传
+3. **Use the fallback**
+   - Manually download the PDF to `~/Downloads/`
+   - Upload it with `notebooklm source add`
 
-### 问题：下载超时
+### Issue: Download timeout
 
-**症状：**
+**Symptom:**
 ```
-⏳ 等待超时
-❌ 下载失败
+⏳ Wait timed out
+❌ Download failed
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **检查网络稳定性**
+1. **Check network stability**
    ```bash
-   # 测试连接
+   # Test the connection
    curl -I https://zh.zlib.li
    ```
 
-2. **增加等待时间**
-   - 脚本默认等待 60 秒
-   - 如果网络慢，可能需要更长时间
+2. **Increase the wait time**
+   - The script waits 60 seconds by default
+   - A slow network may need longer
 
-3. **重试下载**
+3. **Retry the download**
    ```bash
-   # 重新运行
-   python3 scripts/upload.py "你的链接"
+   # Run it again
+   python3 scripts/upload.py "your link"
    ```
 
-### 问题：转换超时
+### Issue: Conversion timeout
 
-**症状：**
+**Symptom:**
 ```
-⚠️ 转换超时，尝试继续...
+⚠️ Conversion timed out, trying to continue...
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **这是正常现象**
-   - Z-Library 需要时间转换格式
-   - 最长可能需要 60 秒
+1. **This is normal**
+   - Z-Library needs time to convert formats
+   - It can take up to 60 seconds
 
-2. **耐心等待**
-   - 脚本会自动检测转换完成
-   - 完成后会自动开始下载
+2. **Be patient**
+   - The script automatically detects when the conversion completes
+   - It starts downloading automatically once done
 
-3. **如果持续超时**
-   - 尝试刷新页面重试
-   - 选择其他格式（如直接 PDF）
+3. **If it keeps timing out**
+   - Try refreshing the page and retrying
+   - Choose a different format (such as a direct PDF)
 
 ---
 
-## 📤 上传问题
+## 📤 Upload Issues
 
-### 问题：NotebookLM 命令未找到
+### Issue: NotebookLM command not found
 
-**症状：**
+**Symptom:**
 ```
 command not found: notebooklm
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **安装 NotebookLM CLI**
+1. **Install the NotebookLM CLI**
    ```bash
    npm install -g @google-notebooklm/cli
    ```
 
-2. **验证安装**
+2. **Verify the installation**
    ```bash
    notebooklm --version
    ```
 
-3. **配置登录**
+3. **Configure login**
    ```bash
    notebooklm login
    ```
 
-### 问题：上传失败
+### Issue: Upload fails
 
-**症状：**
+**Symptom:**
 ```
-✅ 笔记本已创建
-❌ 上传失败
+✅ Notebook created
+❌ Upload failed
 ```
 
-**可能原因：**
-1. 文件过大（NotebookLM 有上传限制）
-2. 网络问题
-3. 格式不支持
+**Possible causes:**
+1. The file is too large (NotebookLM has an upload limit)
+2. Network issue
+3. Unsupported format
 
-**解决方案：**
+**Solution:**
 
-1. **检查文件大小**
+1. **Check the file size**
    ```bash
    ls -lh ~/Downloads/*.pdf
    ```
-   - NotebookLM 通常限制在 50MB 以内
-   - 超过需要压缩或分卷
+   - NotebookLM usually limits files to under 50MB
+   - Larger files need to be compressed or split
 
-2. **检查文件格式**
-   - 支持格式：PDF, TXT, Markdown, Google Docs
-   - 不支持：EPUB, MOBI, AZW3
+2. **Check the file format**
+   - Supported formats: PDF, TXT, Markdown, Google Docs
+   - Not supported: EPUB, MOBI, AZW3
 
-3. **手动上传测试**
+3. **Test a manual upload**
    ```bash
-   notebooklm source add "文件路径"
+   notebooklm source add "file path"
    ```
 
 ---
 
-## 🔧 技术问题
+## 🔧 Technical Issues
 
-### 问题：Playwright 未安装
+### Issue: Playwright is not installed
 
-**症状：**
+**Symptom:**
 ```
 ModuleNotFoundError: No module named 'playwright'
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **安装依赖**
+1. **Install the dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **安装浏览器**
+2. **Install the browser**
    ```bash
    playwright install chromium
    ```
 
-3. **验证安装**
+3. **Verify the installation**
    ```bash
    python3 -c "import playwright; print(playwright.__version__)"
    ```
 
-### 问题：ebooklib 转换失败
+### Issue: ebooklib conversion fails
 
-**症状：**
+**Symptom:**
 ```
-❌ 转换失败: ...
+❌ Conversion failed: ...
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **检查 EPUB 文件**
+1. **Check the EPUB file**
    ```bash
-   # 确认文件存在
+   # Confirm the file exists
    ls -lh ~/Downloads/*.epub
    ```
 
-2. **手动转换测试**
+2. **Test a manual conversion**
    ```bash
-   python3 scripts/convert_epub.py "EPUB路径" "输出路径.txt"
+   python3 scripts/convert_epub.py "EPUB path" "output path.txt"
    ```
 
-3. **使用 PDF 代替**
-   - PDF 格式兼容性更好
-   - 无需转换，直接上传
+3. **Use a PDF instead**
+   - PDF format has better compatibility
+   - No conversion needed, upload directly
 
-### 问题：浏览器崩溃
+### Issue: Browser crashes
 
-**症状：**
+**Symptom:**
 ```
 Browser crashed: ...
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **更新 Playwright**
+1. **Update Playwright**
    ```bash
    pip install --upgrade playwright
    playwright install chromium --force
    ```
 
-2. **使用无头模式（可能更稳定）**
-   - 修改脚本中的 `headless=False` 为 `headless=True`
+2. **Use headless mode (may be more stable)**
+   - Change `headless=False` to `headless=True` in the script
 
-3. **检查系统资源**
+3. **Check system resources**
    ```bash
-   # 检查内存使用
+   # Check memory usage
    top
    ```
 
 ---
 
-## 📊 配置问题
+## 📊 Configuration Issues
 
-### 问题：会话频繁失效
+### Issue: Session expires frequently
 
-**症状：**
-- 每次运行都需要重新登录
-- 提示"未找到会话状态"
+**Symptom:**
+- You have to log in again on every run
+- It says "session state not found"
 
-**解决方案：**
+**Solution:**
 
-1. **检查文件权限**
+1. **Check the file permissions**
    ```bash
    ls -l ~/.zlibrary/storage_state.json
    ```
-   应该显示 `-rw-------` (600)
+   It should show `-rw-------` (600)
 
-2. **修复权限**
+2. **Fix the permissions**
    ```bash
    chmod 600 ~/.zlibrary/storage_state.json
    ```
 
-3. **重新生成会话**
+3. **Regenerate the session**
    ```bash
    rm ~/.zlibrary/storage_state.json
    python3 scripts/login.py
    ```
 
-### 问题：下载目录不正确
+### Issue: Wrong download directory
 
-**症状：**
-- 文件下载到未知位置
-- 找不到下载的文件
+**Symptom:**
+- Files download to an unknown location
+- You cannot find the downloaded file
 
-**解决方案：**
+**Solution:**
 
-1. **默认下载目录**
+1. **Default download directory**
    - macOS/Linux: `~/Downloads/`
    - Windows: `%USERPROFILE%/Downloads/`
 
-2. **查找最近下载的文件**
+2. **Find the most recently downloaded file**
    ```bash
-   # 查找最近的 PDF/EPUB
+   # Find the latest PDF/EPUB
    ls -lt ~/Downloads/*.{pdf,epub} 2>/dev/null | head -5
    ```
 
-3. **自定义下载目录**
-   - 修改脚本中的 `downloads_dir` 变量
+3. **Customize the download directory**
+   - Change the `downloads_dir` variable in the script
 
 ---
 
-## 🌐 网络问题
+## 🌐 Network Issues
 
-### 问题：无法访问 Z-Library
+### Issue: Cannot access Z-Library
 
-**症状：**
+**Symptom:**
 ```
-Failed to connect to github.com port 443
+Failed to connect to zh.zlib.li port 443
 ```
 
-**解决方案：**
+**Solution:**
 
-1. **检查 DNS**
+1. **Check DNS**
    ```bash
-   # 查看是否为 Z-Library 域名解析问题
+   # See whether it is a Z-Library domain resolution issue
    nslookup zh.zlib.li
    ```
 
-2. **尝试备用域名**
+2. **Try a backup domain**
    - https://zh.zlib.li/
    - https://z-lib.org/
    - https://zlibrary.org/
 
-3. **检查代理设置**
-   - 如果使用 VPN，尝试切换节点
-   - 或暂时关闭 VPN
+3. **Check your proxy settings**
+   - If you use a VPN, try switching nodes
+   - Or temporarily turn off the VPN
 
-4. **使用镜像站点**（如果有）
+4. **Use a mirror site** (if one is available)
 
 ---
 
-## 📝 使用问题
+## 📝 Usage Issues
 
-### 问题：Claude 无法识别 Skill
+### Issue: Claude does not recognize the Skill
 
-**症状：**
-- 在 Claude Code 中提到 Skill，但 Claude 不知道如何使用
+**Symptom:**
+- You mention the Skill in Claude Code, but Claude does not know how to use it
 
-**解决方案：**
+**Solution:**
 
-1. **确认 SKILL.md 存在**
+1. **Confirm SKILL.md exists**
    ```bash
    ls -l ~/.claude/skills/zlib-to-notebooklm/SKILL.md
    ```
 
-2. **检查文件权限**
+2. **Check the file permissions**
    ```bash
    chmod 644 ~/.claude/skills/zlib-to-notebooklm/SKILL.md
    ```
 
-3. **重启 Claude Code**
-   - 完全退出 Claude Code
-   - 重新打开
-   - 让 Claude 重新加载 Skills
+3. **Restart Claude Code**
+   - Fully quit Claude Code
+   - Reopen it
+   - Let Claude reload the Skills
 
-4. **使用完整触发词**
-   - 提及 Z-Library 链接
-   - 明确说"上传到 NotebookLM"
+4. **Use the full trigger phrasing**
+   - Mention a Z-Library link
+   - Explicitly say "upload to NotebookLM"
 
 ---
 
-## 🆘 仍然无法解决？
+## 🆘 Still Stuck?
 
-### 收集诊断信息
+### Collect diagnostic information
 
-在寻求帮助前，请收集以下信息：
+Before asking for help, please collect the following:
 
-1. **系统信息**
+1. **System information**
    ```bash
    python3 --version
    uname -a  # macOS/Linux
-   # 或 Windows: systeminfo
+   # or Windows: systeminfo
    ```
 
-2. **依赖版本**
+2. **Dependency versions**
    ```bash
    pip list | grep -E "playwright|ebooklib"
    ```
 
-3. **错误日志**
-   - 运行时的完整错误信息
-   - 截图（如果可能）
+3. **Error logs**
+   - The complete error message from the run
+   - A screenshot (if possible)
 
-4. **复现步骤**
-   - 你做了什么操作
-   - 预期结果是什么
-   - 实际结果是什么
+4. **Reproduction steps**
+   - What you did
+   - What you expected to happen
+   - What actually happened
 
-### 获取帮助
+### Get help
 
-- **GitHub Issues**: [提交问题](https://github.com/zstmfhy/zlibrary-to-notebooklm/issues)
-- **查看文档**: [README.md](README.md)
-- **检查 SKILL.md**: [SKILL.md](SKILL.md)
+- **GitHub Issues**: [Submit an issue](https://github.com/zstmfhy/zlibrary-to-notebooklm/issues)
+- **Read the docs**: [README.md](../README.md)
+- **Check SKILL.md**: [SKILL.md](../SKILL.md)
 
 ---
 
-## 💡 最佳实践
+## 💡 Best Practices
 
-### 避免常见问题
+### Avoid common problems
 
-1. **定期检查登录状态**
+1. **Check the login state regularly**
    ```bash
-   # 每周检查一次
+   # Check once a week
    ls -lh ~/.zlibrary/storage_state.json
    ```
 
-2. **保持依赖更新**
+2. **Keep dependencies up to date**
    ```bash
    pip install --upgrade -r requirements.txt
    ```
 
-3. **使用合法资源**
-   - 只上传你有权限的内容
-   - 遵守当地法律法规
+3. **Use legal resources**
+   - Only upload content you have the rights to
+   - Follow your local laws and regulations
 
-4. **批量处理时添加延迟**
+4. **Add a delay when batch processing**
    ```bash
-   # 避免请求过快
+   # Avoid sending requests too fast
    for url in "url1" "url2" "url3"; do
        python3 scripts/upload.py "$url"
-       sleep 5  # 等待 5 秒
+       sleep 5  # wait 5 seconds
    done
    ```
 
 ---
 
-**文档版本**: 1.0.0
-**最后更新**: 2025-01-14
+**Document version**: 1.1.0
+**Last updated**: 2026-07-04

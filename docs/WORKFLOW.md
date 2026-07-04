@@ -1,119 +1,119 @@
-# 工作流程详解
+# Workflow Details
 
-## 完整流程图
+## Full Flow Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Z-Library to NotebookLM                   │
-│                        完整工作流程                          │
+│                        Full Workflow                         │
 └─────────────────────────────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  1. 用户输入 Z-Library 书籍链接       │
+        │  1. User enters a Z-Library book link │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  2. 检查本地会话状态                   │
+        │  2. Check the local session state     │
         │     ~/.zlibrary/storage_state.json     │
         └───────────────────────────────────────┘
                      ↙              ↘
-              会话存在              会话不存在
+           Session exists      No session
                  ↓                      ↓
     ┌──────────────────┐      ┌─────────────────┐
-    │  使用已保存的会话  │      │  提示用户先登录   │
+    │  Use saved session│      │  Prompt to login │
     └──────────────────┘      │  python3 login.py│
                               └─────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  3. 启动浏览器（Playwright）           │
-        │     - 使用持久化上下文                 │
-        │     - 加载保存的 cookies               │
+        │  3. Launch the browser (Playwright)   │
+        │     - Use a persistent context        │
+        │     - Load the saved cookies          │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  4. 访问书籍页面                       │
+        │  4. Visit the book page               │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  5. 检测页面类型                       │
+        │  5. Detect the page type              │
         └───────────────────────────────────────┘
                      ↙              ↘
-             新版界面              旧版界面
-         (三点菜单)            (转换按钮)
+             New UI                Old UI
+         (three-dot menu)      (convert button)
                  ↓                   ↓
     ┌─────────────────┐   ┌──────────────────┐
-    │ 点击三点菜单     │   │ 查找转换按钮      │
-    │ 选择格式         │   │ 点击转换          │
+    │ Click the menu  │   │ Find convert btn  │
+    │ Choose a format │   │ Click convert     │
     └─────────────────┘   └──────────────────┘
                  ↘                   ↙
                   └─────────┬──────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  6. 智能选择格式                       │
-        │     优先级: PDF > EPUB > 其他         │
+        │  6. Smart format selection            │
+        │     Priority: PDF > EPUB > Other      │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  7. 等待转换完成（如需要）             │
-        │     - 检测"转换已完成"消息             │
-        │     - 最长等待 60 秒                  │
+        │  7. Wait for conversion (if needed)   │
+        │     - Detect the "conversion done" msg│
+        │     - Wait up to 60 seconds           │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  8. 点击下载链接                      │
-        │     - 使用 JavaScript 点击             │
-        │     - 绕过可见性问题                   │
+        │  8. Click the download link           │
+        │     - Click via JavaScript            │
+        │     - Bypass visibility issues        │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  9. 等待下载完成                       │
-        │     - 监听下载事件                    │
-        │     - 保存到 ~/Downloads/             │
+        │  9. Wait for the download to finish   │
+        │     - Listen for the download event   │
+        │     - Save to ~/Downloads/            │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  10. 格式处理                          │
+        │  10. Format processing                │
         │      ↙          ↘                    │
-        │   是 PDF       是 EPUB                │
+        │   Is PDF        Is EPUB               │
         │     ↓            ↓                    │
-        │  直接使用    转换为 TXT               │
+        │  Use directly  Convert to TXT         │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  11. 创建 NotebookLM 笔记本           │
+        │  11. Create a NotebookLM notebook     │
         │      - notebooklm create              │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  12. 上传内容                          │
+        │  12. Upload the content               │
         │      - notebooklm source add          │
         └───────────────────────────────────────┘
                             ↓
         ┌───────────────────────────────────────┐
-        │  13. 返回笔记本 ID                     │
-        │      - 用户可以立即开始使用           │
+        │  13. Return the notebook ID           │
+        │      - The user can start using it    │
         └───────────────────────────────────────┘
                             ↓
-                      ✅ 完成！
+                      ✅ Done!
 ```
 
-## 详细步骤说明
+## Detailed Step Descriptions
 
-### 步骤 1-2: 初始化和会话检查
+### Steps 1-2: Initialization and session check
 
-**检测会话状态：**
-- 位置：`~/.zlibrary/storage_state.json`
-- 内容：cookies、localStorage、sessionStorage
-- 权限：600（仅所有者可读写）
+**Detecting the session state:**
+- Location: `~/.zlibrary/storage_state.json`
+- Contents: cookies, localStorage, sessionStorage
+- Permissions: 600 (owner read/write only)
 
-**如果没有会话：**
+**If there is no session:**
 ```bash
-python3 bin/login.py
+python3 scripts/login.py
 ```
 
-### 步骤 3-4: 浏览器启动和页面访问
+### Steps 3-4: Browser launch and page visit
 
-**使用 Playwright 持久化上下文：**
+**Using a Playwright persistent context:**
 ```python
 browser = await p.chromium.launch_persistent_context(
     user_data_dir="~/.zlibrary/browser_profile",
@@ -122,35 +122,35 @@ browser = await p.chromium.launch_persistent_context(
 )
 ```
 
-**优势：**
-- 保留所有 cookies
-- 保留浏览器缓存
-- 无需重复登录
+**Advantages:**
+- Retains all cookies
+- Retains the browser cache
+- No repeated logins needed
 
-### 步骤 5-6: 页面类型检测和格式选择
+### Steps 5-6: Page type detection and format selection
 
-**新版界面（三点菜单）：**
+**New UI (three-dot menu):**
 ```python
 dots_button = await page.query_selector('[class*="dots"]')
 if dots_button:
-    # 点击菜单，选择格式
+    # Click the menu and choose a format
 ```
 
-**旧版界面（转换按钮）：**
+**Old UI (convert button):**
 ```python
 convert_button = await page.query_selector('a[data-convert_to="pdf"]')
 if convert_button:
-    # 点击转换按钮
+    # Click the convert button
 ```
 
-**格式优先级：**
-1. **PDF** ⭐ - 保留排版，无需转换
-2. **EPUB** - 转换为纯文本（AI 检索最佳）
-3. **其他** - 根据情况处理
+**Format priority:**
+1. **PDF** ⭐ - preserves formatting, no conversion needed
+2. **EPUB** - converted to plain text (best for AI retrieval)
+3. **Other** - handled case by case
 
-### 步骤 7-8: 转换和下载
+### Steps 7-8: Conversion and download
 
-**等待转换完成：**
+**Wait for the conversion to complete:**
 ```python
 for i in range(60):
     message = await page.query_selector('.message:has-text("转换为")')
@@ -159,14 +159,14 @@ for i in range(60):
     await asyncio.sleep(1)
 ```
 
-**JavaScript 点击（绕过可见性问题）：**
+**JavaScript click (bypasses visibility issues):**
 ```python
 await download_link.evaluate('el => el.click()')
 ```
 
-### 步骤 9-10: 下载和格式处理
+### Steps 9-10: Download and format processing
 
-**监听下载事件：**
+**Listen for the download event:**
 ```python
 async def handle_download(download):
     file_path = downloads_dir / download.suggested_filename
@@ -175,83 +175,83 @@ async def handle_download(download):
 page.on('download', handle_download)
 ```
 
-**格式处理：**
-- **PDF** → 直接使用
-- **EPUB** → 使用 ebooklib 提取文本
+**Format processing:**
+- **PDF** → use directly
+- **EPUB** → extract text with ebooklib
 
-### 步骤 11-12: NotebookLM 上传
+### Steps 11-12: NotebookLM upload
 
-**创建笔记本：**
+**Create a notebook:**
 ```bash
-notebooklm create "书名" --json
+notebooklm create "Book Title" --json
 ```
 
-**上传内容：**
+**Upload the content:**
 ```bash
-notebooklm source add "文件路径" --json
+notebooklm source add "file path" --json
 ```
 
-## 故障排除
+## Troubleshooting
 
-### 问题 1: 会话过期
+### Issue 1: Session expired
 
-**症状：** 提示未登录
+**Symptom:** it says you are not logged in
 
-**解决：**
+**Fix:**
 ```bash
 rm ~/.zlibrary/storage_state.json
-python3 bin/login.py
+python3 scripts/login.py
 ```
 
-### 问题 2: 找不到下载按钮
+### Issue 2: Download button not found
 
-**症状：** "未找到下载链接"
+**Symptom:** "No download link found"
 
-**可能原因：**
-- 页面结构变化
-- 需要登录
-- 网络问题
+**Possible causes:**
+- Page structure changed
+- Login required
+- Network issue
 
-**解决：**
-- 检查浏览器窗口
-- 手动完成操作
-- 截图保存用于调试
+**Fix:**
+- Check the browser window
+- Complete the action manually
+- Take a screenshot for debugging
 
-### 问题 3: 转换超时
+### Issue 3: Conversion timeout
 
-**症状：** "转换超时"
+**Symptom:** "Conversion timeout"
 
-**解决：**
-- 检查网络连接
-- 尝试手动点击转换
-- 增加等待时间
+**Fix:**
+- Check your network connection
+- Try clicking convert manually
+- Increase the wait time
 
-## 最佳实践
+## Best Practices
 
-1. **定期检查会话状态**
+1. **Check the session state regularly**
    ```bash
    ls -lh ~/.zlibrary/storage_state.json
    ```
 
-2. **批量处理时添加延迟**
+2. **Add a delay when batch processing**
    ```bash
    for url in "url1" "url2" "url3"; do
-       python3 bin/upload.py "$url"
-       sleep 5  # 避免请求过快
+       python3 scripts/upload.py "$url"
+       sleep 5  # avoid sending requests too fast
    done
    ```
 
-3. **保留原始文件**
-   - 所有下载文件保存在 `~/Downloads/`
-   - 转换后的文本在 `/tmp/`
-   - 可以随时备份或重新处理
+3. **Keep the original files**
+   - All downloaded files are saved in `~/Downloads/`
+   - Converted text is in `/tmp/`
+   - You can back them up or reprocess them at any time
 
-## 性能优化
+## Performance Optimization
 
-- 使用持久化浏览器上下文（减少启动时间）
-- 并发下载（批量处理时）
-- 智能格式选择（优先 PDF，减少转换时间）
+- Use a persistent browser context (reduces startup time)
+- Concurrent downloads (when batch processing)
+- Smart format selection (prefer PDF to reduce conversion time)
 
 ---
 
-**需要帮助？** 查看 [故障排除指南](TROUBLESHOOTING.md)
+**Need help?** See the [Troubleshooting Guide](TROUBLESHOOTING.md)
