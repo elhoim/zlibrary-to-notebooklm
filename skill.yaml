@@ -1,5 +1,5 @@
 name: zlibrary-to-notebooklm
-version: 1.1.0
+version: 1.2.0
 description: Automatically download books from Z-Library and upload them to Google NotebookLM with one command.
 author: zstmfhy
 contributors:
@@ -25,9 +25,10 @@ features:
   - Smart file splitting (auto-chunk when >350k words)
   - Fully automated workflow
   - Real-time progress display
+  - Auto-detects the NotebookLM CLI (native notebooklm or nlm)
 
 dependencies:
   - python>=3.8
   - playwright
   - ebooklib
-  - notebooklm-cli
+  - notebooklm-cli  # or nlm (https://github.com/tmc/nlm); auto-detected

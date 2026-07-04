@@ -93,9 +93,11 @@ If an error occurs:
 2. **ebooklib** - EPUB processing
    - Used to convert EPUB to plain text
 
-3. **NotebookLM CLI** - upload tool
-   - `notebooklm create` - create a notebook
-   - `notebooklm source add` - upload a file
+3. **NotebookLM CLI** - upload tool (auto-detected)
+   - The upload script detects and uses whichever tool is installed:
+     the native `notebooklm` CLI (preferred) or [`nlm`](https://github.com/tmc/nlm) (fallback)
+   - Create a notebook: `notebooklm create` / `nlm notebook create`
+   - Upload a file: `notebooklm source add` / `nlm source add <notebook-id> --file`
 
 ### Configuration files
 
@@ -253,7 +255,7 @@ If you want to learn more:
 
 ---
 
-**Skill Version:** 1.1.0
+**Skill Version:** 1.2.0
 **Last Updated:** 2026-07-04
 **Author:** zstmfhy
 **Contributors:** elhoim

@@ -1,6 +1,6 @@
 {
   "name": "zlibrary-to-notebooklm",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Automatically download books from Z-Library and upload them to Google NotebookLM with one command.",
   "main": "src/uploader.py",
   "scripts": {
