@@ -7,8 +7,15 @@ import asyncio
 import sys
 import time
 import re
+import shutil
 from pathlib import Path
 from urllib.parse import unquote
+
+# UUID pattern used to extract notebook/source IDs from CLI output
+# (both the native `notebooklm` CLI and `nlm` identify resources by UUID)
+_UUID_RE = re.compile(
+    r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+)
 
 try:
     from playwright.async_api import async_playwright
@@ -504,12 +511,124 @@ class ZLibraryAutoUploader:
             print(f"ℹ️  File format: {file_ext}, using it directly")
             return file_path
 
+    def detect_notebooklm_backend(self) -> str | None:
+        """Detect which NotebookLM command-line tool is installed.
+
+        Returns the backend name to use, preferring the skill's native
+        `notebooklm` CLI when present and falling back to `nlm`
+        (the NotebookLM companion CLI, https://github.com/tmc/nlm).
+        Returns None if neither tool is on PATH.
+        """
+        if shutil.which("notebooklm"):
+            return "notebooklm"
+        if shutil.which("nlm"):
+            return "nlm"
+        return None
+
+    def _nlm_notebook_ids(self) -> set:
+        """Return the set of existing notebook UUIDs known to `nlm`."""
+        import subprocess
+        try:
+            r = subprocess.run(
+                ["nlm", "notebook", "list", "--quiet"],
+                capture_output=True, text=True
+            )
+            return set(_UUID_RE.findall(r.stdout))
+        except Exception:
+            return set()
+
+    def _nb_create(self, backend: str, title: str):
+        """Create a notebook. Returns (notebook_id, error)."""
+        import subprocess
+        import json
+
+        if backend == "notebooklm":
+            result = subprocess.run(
+                ["notebooklm", "create", title, "--json"],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                return None, result.stderr
+            try:
+                return json.loads(result.stdout)["notebook"]["id"], None
+            except Exception:
+                return None, "Failed to parse the notebook ID from notebooklm output"
+
+        # backend == "nlm": no --json flag, so snapshot IDs to identify the new one
+        before = self._nlm_notebook_ids()
+        result = subprocess.run(
+            ["nlm", "notebook", "create", title],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            return None, result.stderr
+        # Primary: the created notebook's UUID is usually echoed in the output
+        match = _UUID_RE.search(result.stdout)
+        if match:
+            return match.group(0), None
+        # Fallback: diff the notebook list to find the newly created ID
+        new_ids = self._nlm_notebook_ids() - before
+        if len(new_ids) == 1:
+            return next(iter(new_ids)), None
+        return None, "Created the notebook but could not determine its ID from nlm"
+
+    def _nb_use(self, backend: str, notebook_id: str) -> None:
+        """Set the active notebook context (only meaningful for `notebooklm`)."""
+        import subprocess
+        if backend == "notebooklm":
+            subprocess.run(["notebooklm", "use", notebook_id], capture_output=True)
+        # `nlm` takes the notebook ID explicitly per command, so there is no context to set
+
+    def _nb_add_source(self, backend: str, notebook_id: str, file_path: Path):
+        """Upload one file as a source. Returns (source_id, error).
+
+        source_id may be an empty string on success if the tool does not
+        print a parseable ID (the upload still succeeded).
+        """
+        import subprocess
+        import json
+
+        if backend == "notebooklm":
+            # Relies on the notebook context set by _nb_use()
+            result = subprocess.run(
+                ["notebooklm", "source", "add", str(file_path), "--json"],
+                capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                return None, result.stderr
+            try:
+                return json.loads(result.stdout)["source"]["id"], None
+            except Exception:
+                return "", None  # succeeded but no parseable ID
+
+        # backend == "nlm": pass the notebook ID explicitly and wait for processing
+        result = subprocess.run(
+            ["nlm", "source", "add", notebook_id, "--file", str(file_path), "--wait"],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            return None, result.stderr
+        match = _UUID_RE.search(result.stdout)
+        return (match.group(0) if match else ""), None
+
     def upload_to_notebooklm(self, file_path: Path | list[Path], title: str = None) -> dict:
         """Upload to NotebookLM"""
         print("")
         print("="*70)
         print("⬆️  Uploading to NotebookLM")
         print("="*70)
+
+        # Detect which NotebookLM CLI to use (notebooklm preferred, nlm as fallback)
+        backend = self.detect_notebooklm_backend()
+        if backend is None:
+            return {
+                "success": False,
+                "error": (
+                    "No NotebookLM CLI found. Install the native 'notebooklm' CLI "
+                    "or 'nlm' (https://github.com/tmc/nlm) and make sure it is on PATH."
+                ),
+            }
+        print(f"🔧 NotebookLM backend: {backend}")
 
         # Handle a list of files (the split chunks)
         if isinstance(file_path, list):
@@ -528,50 +647,36 @@ class ZLibraryAutoUploader:
 
             # Create the notebook
             print(f"📚 Creating notebook: {title}")
-            import subprocess
-            import json
+            notebook_id, error = self._nb_create(backend, title)
+            if notebook_id is None:
+                return {"success": False, "error": error}
+            print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
 
-            cmd = f"notebooklm create '{title}' --json"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-
-            if result.returncode != 0:
-                return {"success": False, "error": result.stderr}
-
-            try:
-                data = json.loads(result.stdout)
-                notebook_id = data['notebook']['id']
-                print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
-            except:
-                return {"success": False, "error": "Failed to parse the notebook ID"}
-
-            # Set the context
+            # Set the context (no-op for nlm)
             print(f"🎯 Setting the notebook context...")
-            cmd = f"notebooklm use {notebook_id}"
-            subprocess.run(cmd, shell=True, capture_output=True)
+            self._nb_use(backend, notebook_id)
 
             # Upload all chunks
             source_ids = []
+            uploaded = 0
             for i, chunk_file in enumerate(file_path, 1):
                 print(f"📄 Uploading chunk {i}/{len(file_path)}: {chunk_file.name}")
-                cmd = f"notebooklm source add '{chunk_file}' --json"
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-
-                if result.returncode != 0:
-                    print(f"⚠️  Chunk {i} upload failed: {result.stderr}")
+                source_id, error = self._nb_add_source(backend, notebook_id, chunk_file)
+                if error is not None:
+                    print(f"⚠️  Chunk {i} upload failed: {error}")
                     continue
-
-                try:
-                    data = json.loads(result.stdout)
-                    source_id = data['source']['id']
+                uploaded += 1
+                if source_id:
                     source_ids.append(source_id)
                     print(f"   ✅ Success (ID: {source_id[:8]}...)")
-                except:
-                    print(f"⚠️  Chunk {i} parsing failed")
+                else:
+                    print(f"   ✅ Success")
 
             return {
-                "success": len(source_ids) > 0,
+                "success": uploaded > 0,
                 "notebook_id": notebook_id,
                 "source_ids": source_ids,
+                "uploaded": uploaded,
                 "title": title,
                 "chunks": len(file_path)
             }
@@ -590,48 +695,32 @@ class ZLibraryAutoUploader:
 
         # Create the notebook
         print(f"📚 Creating notebook: {title}")
-        import subprocess
-        import json
+        notebook_id, error = self._nb_create(backend, title)
+        if notebook_id is None:
+            return {"success": False, "error": error}
+        print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
 
-        cmd = f"notebooklm create '{title}' --json"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            return {"success": False, "error": result.stderr}
-
-        try:
-            data = json.loads(result.stdout)
-            notebook_id = data['notebook']['id']
-            print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
-        except:
-            return {"success": False, "error": "Failed to parse the notebook ID"}
-
-        # Set the context
+        # Set the context (no-op for nlm)
         print(f"🎯 Setting the notebook context...")
-        cmd = f"notebooklm use {notebook_id}"
-        subprocess.run(cmd, shell=True, capture_output=True)
+        self._nb_use(backend, notebook_id)
 
         # Upload the file
         print(f"📄 Uploading file...")
-        cmd = f"notebooklm source add '{file_path}' --json"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        source_id, error = self._nb_add_source(backend, notebook_id, file_path)
+        if error is not None:
+            return {"success": False, "error": error}
 
-        if result.returncode != 0:
-            return {"success": False, "error": result.stderr}
-
-        try:
-            data = json.loads(result.stdout)
-            source_id = data['source']['id']
+        if source_id:
             print(f"✅ Upload successful (ID: {source_id[:8]}...)")
+        else:
+            print(f"✅ Upload successful")
 
-            return {
-                "success": True,
-                "notebook_id": notebook_id,
-                "source_id": source_id,
-                "title": title
-            }
-        except:
-            return {"success": False, "error": "Failed to parse the source ID"}
+        return {
+            "success": True,
+            "notebook_id": notebook_id,
+            "source_id": source_id,
+            "title": title
+        }
 
 
 async def main():
@@ -672,17 +761,24 @@ async def main():
         # Handle the result of a chunked upload
         if 'chunks' in result:
             print(f"📦 Chunks: {result['chunks']}")
-            print(f"📄 Successfully uploaded {len(result['source_ids'])}/{result['chunks']} chunks")
-            print("   Source IDs:")
-            for sid in result['source_ids']:
-                print(f"      - {sid}")
-        else:
+            uploaded = result.get('uploaded', len(result['source_ids']))
+            print(f"📄 Successfully uploaded {uploaded}/{result['chunks']} chunks")
+            if result['source_ids']:
+                print("   Source IDs:")
+                for sid in result['source_ids']:
+                    print(f"      - {sid}")
+        elif result.get('source_id'):
             print(f"📄 Source ID: {result['source_id']}")
 
         print("")
         print("💡 Next steps:")
-        print(f"   notebooklm use {result['notebook_id']}")
-        print(f"   notebooklm ask \"What are the core ideas of this book?\"")
+        backend = uploader.detect_notebooklm_backend()
+        question = "What are the core ideas of this book?"
+        if backend == "nlm":
+            print(f"   nlm notebook query {result['notebook_id']} \"{question}\"")
+        else:
+            print(f"   notebooklm use {result['notebook_id']}")
+            print(f"   notebooklm ask \"{question}\"")
     else:
         print("❌ Upload failed")
         print("="*70)

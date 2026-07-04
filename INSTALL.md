@@ -27,14 +27,20 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 4. Make sure the NotebookLM CLI is installed
+### 4. Make sure a NotebookLM CLI is installed
+
+The upload script auto-detects which NotebookLM command-line tool is available
+and uses whichever it finds — the native `notebooklm` CLI is preferred, and
+[`nlm`](https://github.com/tmc/nlm) is used as a fallback. You only need **one**
+of them.
 
 ```bash
-# Check whether the notebooklm command is available
+# Option A: the native notebooklm CLI (preferred if installed)
 notebooklm --version
 
-# If it is not installed, install the NotebookLM CLI first
-npm install -g @google-notebooklm/cli
+# Option B: the nlm companion CLI (used automatically if notebooklm is absent)
+nlm --version
+nlm login   # authenticate once
 ```
 
 ## Verify the Installation
