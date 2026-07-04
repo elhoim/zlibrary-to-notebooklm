@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Z-Library 全自动下载并上传到 NotebookLM
+Z-Library fully automated download and upload to NotebookLM
 """
 
 import asyncio
@@ -13,13 +13,13 @@ from urllib.parse import unquote
 try:
     from playwright.async_api import async_playwright
 except ImportError:
-    print("❌ Playwright 未安装")
-    print("请运行: pip install playwright")
+    print("❌ Playwright is not installed")
+    print("Please run: pip install playwright")
     sys.exit(1)
 
 
 class ZLibraryAutoUploader:
-    """Z-Library 自动下载上传器"""
+    """Z-Library automatic download-and-upload helper"""
 
     def __init__(self):
         self.downloads_dir = Path.home() / "Downloads"
@@ -28,7 +28,7 @@ class ZLibraryAutoUploader:
         self.config_file = self.config_dir / "config.json"
 
     def load_credentials(self) -> dict | None:
-        """加载 Z-Library 凭据"""
+        """Load Z-Library credentials"""
         if not self.config_file.exists():
             return None
 
@@ -40,87 +40,88 @@ class ZLibraryAutoUploader:
             return None
 
     async def login_to_zlibrary(self, page):
-        """登录 Z-Library"""
+        """Log in to Z-Library"""
         credentials = self.load_credentials()
 
         if not credentials:
-            print("⚠️  未找到 Z-Library 配置")
-            print("💡 请先运行: python3 /tmp/zlib_config.py")
+            print("⚠️  Z-Library configuration not found")
+            print("💡 Please run first: python3 scripts/login.py")
             return False
 
-        print("🔐 登录 Z-Library...")
-        print(f"📧 使用账号: {credentials['email']}")
+        print("🔐 Logging in to Z-Library...")
+        print(f"📧 Using account: {credentials['email']}")
 
         try:
-            # 检查是否已经有登录对话框
+            # Check whether a login dialog is already present
             modal = await page.query_selector('#zlibrary-modal-auth')
             if modal:
-                print("📝 检测到登录对话框")
-                # 直接在对话框中输入
+                print("📝 Login dialog detected")
+                # Fill the fields directly in the dialog
                 email_input = await page.wait_for_selector('#modal-auth input[type="email"], #modal-auth input[name="email"]', timeout=5000)
                 await email_input.fill(credentials['email'])
 
                 password_input = await page.wait_for_selector('#modal-auth input[type="password"], #modal-auth input[name="password"]', timeout=5000)
                 await password_input.fill(credentials['password'])
 
-                # 点击登录
+                # Click login
                 submit_button = await page.wait_for_selector('#modal-auth button[type="submit"]', timeout=5000)
                 await submit_button.click()
             else:
-                # 点击登录按钮
+                # Click the login button (Chinese selector text matches the live page)
                 login_button = await page.wait_for_selector('a:has-text("Log in"), a:has-text("登录")', timeout=5000)
                 await login_button.click()
                 await asyncio.sleep(2)
 
-                # 输入邮箱
+                # Enter the email
                 email_input = await page.wait_for_selector('input[type="email"], input[name="email"]', timeout=5000)
                 await email_input.fill(credentials['email'])
 
-                # 输入密码
+                # Enter the password
                 password_input = await page.wait_for_selector('input[type="password"], input[name="password"]', timeout=5000)
                 await password_input.fill(credentials['password'])
 
-                # 点击登录
+                # Click login (Chinese selector text matches the live page)
                 submit_button = await page.wait_for_selector('button[type="submit"], button:has-text("Log in"), button:has-text("登录")', timeout=5000)
                 await submit_button.click()
 
-            # 等待登录完成
+            # Wait for the login to complete
             await asyncio.sleep(5)
 
-            # 检查是否登录成功
+            # Check whether the login succeeded
             current_url = page.url
             page_content = await page.content()
 
+            # "登录" ("Log in") disappearing from the page indicates a successful login
             if "logout" in page_content.lower() or "登录" not in page_content:
-                print("✅ 登录成功")
+                print("✅ Login successful")
                 return True
             else:
-                print("❌ 登录可能失败，请检查账号密码")
+                print("❌ Login may have failed, please check your account and password")
                 return False
 
         except Exception as e:
-            print(f"❌ 登录过程出错: {e}")
+            print(f"❌ Error during login: {e}")
             return False
 
     async def download_from_zlibrary(self, url: str) -> Path | None:
-        """从 Z-Library 下载书籍"""
+        """Download a book from Z-Library"""
         print("="*70)
-        print("🌐 启动浏览器自动化下载")
+        print("🌐 Starting browser-automated download")
         print("="*70)
 
-        # 检查是否有保存的会话
+        # Check whether a saved session exists
         storage_state = self.config_dir / "storage_state.json"
 
         if not storage_state.exists():
-            print("❌ 未找到会话状态")
-            print("💡 请先运行: python3 /tmp/zlibrary_login.py")
+            print("❌ Session state not found")
+            print("💡 Please run first: python3 scripts/login.py")
             return None
 
-        print(f"✅ 使用已保存的会话")
+        print(f"✅ Using the saved session")
 
         async with async_playwright() as p:
-            # 启动浏览器（使用持久化上下文）
-            print("🚀 启动浏览器...")
+            # Launch the browser (using a persistent context)
+            print("🚀 Launching browser...")
 
             browser = await p.chromium.launch_persistent_context(
                 user_data_dir=str(self.config_dir / "browser_profile"),
@@ -132,92 +133,94 @@ class ZLibraryAutoUploader:
             page = browser.pages[0] if browser.pages else await browser.new_page()
             page.set_default_timeout(60000)
 
-            # 设置下载处理
+            # Set up download handling
             download_path = None
 
             async def handle_download(download):
                 nonlocal download_path
-                print("✅ 检测到下载开始...")
+                print("✅ Download start detected...")
                 suggested_filename = download.suggested_filename
-                print(f"📄 文件名: {suggested_filename}")
+                print(f"📄 Filename: {suggested_filename}")
                 download_path = self.downloads_dir / suggested_filename
                 await download.save_as(download_path)
-                print(f"💾 已保存: {download_path}")
+                print(f"💾 Saved: {download_path}")
 
             page.on('download', handle_download)
 
             try:
-                # 访问目标页面
-                print(f"📖 访问书籍页面...")
+                # Visit the target page
+                print(f"📖 Visiting the book page...")
                 await page.goto(url, wait_until='domcontentloaded', timeout=60000)
 
-                print("⏳ 等待页面加载...")
+                print("⏳ Waiting for the page to load...")
                 await asyncio.sleep(5)
 
-                # 步骤1: 查找下载方式（优先 PDF，然后 EPUB）
-                print("🔍 步骤1: 查找下载方式...")
+                # Step 1: find a download method (prefer PDF, then EPUB)
+                print("🔍 Step 1: looking for a download method...")
 
-                # 首先检查是否有三个点的菜单按钮（新界面）
+                # First check for a three-dot menu button (new UI); Chinese selector text matches the live page
                 dots_button = await page.query_selector('button[aria-label="更多选项"], button[title="更多"], .more-options, [class*="dots"], [class*="more"]')
 
                 download_link = None
                 downloaded_format = None
 
                 if dots_button:
-                    print("📱 检测到新版界面（三点菜单）")
-                    # 点击打开菜单
+                    print("📱 New UI detected (three-dot menu)")
+                    # Click to open the menu
                     await dots_button.click()
                     await asyncio.sleep(2)
 
-                    # 查找 PDF 选项（优先）
-                    print("🔍 查找 PDF 选项...")
+                    # Look for a PDF option (preferred)
+                    print("🔍 Looking for a PDF option...")
                     pdf_options = await page.query_selector_all('a:has-text("PDF"), button:has-text("PDF")')
                     if pdf_options:
-                        # 选择第一个 PDF（通常文件最小）
+                        # Pick the first PDF (usually the smallest file)
                         download_link = pdf_options[0]
                         downloaded_format = 'pdf'
-                        print(f"✅ 找到 PDF 选项")
+                        print(f"✅ Found a PDF option")
                     else:
-                        # 备选：查找 EPUB
-                        print("🔍 未找到 PDF，查找 EPUB 选项...")
+                        # Fallback: look for EPUB
+                        print("🔍 No PDF found, looking for an EPUB option...")
                         epub_options = await page.query_selector_all('a:has-text("EPUB"), button:has-text("EPUB")')
                         if epub_options:
                             download_link = epub_options[0]
                             downloaded_format = 'epub'
-                            print(f"✅ 找到 EPUB 选项")
+                            print(f"✅ Found an EPUB option")
 
                 else:
-                    # 旧界面：检查转换按钮
-                    print("📱 检测到旧版界面")
+                    # Old UI: check for a convert button
+                    print("📱 Old UI detected")
                     convert_selector_pdf = 'a[data-convert_to="pdf"]'
                     convert_selector_epub = 'a[data-convert_to="epub"]'
 
-                    # 优先尝试 PDF
+                    # Try PDF first
                     convert_button = await page.query_selector(convert_selector_pdf)
 
                     if convert_button:
-                        print("📝 检测到 PDF 转换按钮")
+                        print("📝 PDF convert button detected")
                         downloaded_format = 'pdf'
                         await convert_button.evaluate('el => el.click()')
-                        print("✅ 已点击 PDF 转换按钮")
+                        print("✅ Clicked the PDF convert button")
 
-                        # 等待转换完成
-                        print("⏳ 等待 PDF 转换完成...")
+                        # Wait for the conversion to complete
+                        print("⏳ Waiting for the PDF conversion to complete...")
                         for i in range(60):
                             await asyncio.sleep(1)
                             try:
+                                # Chinese "转换为" ("converted to") matches the live status message
                                 message = await page.query_selector('.message:has-text("转换为")')
                                 if message:
                                     message_text = await message.inner_text()
+                                    # Chinese "完成" means "done/complete"
                                     if 'pdf' in message_text.lower() and '完成' in message_text:
-                                        print("✅ PDF 转换已完成!")
+                                        print("✅ PDF conversion complete!")
                                         break
                             except:
                                 pass
                             if i % 10 == 0 and i > 0:
-                                print(f"   ⏳ 等待中... {i}秒")
+                                print(f"   ⏳ Waiting... {i}s")
 
-                        # 查找下载链接
+                        # Look for the download link
                         download_link = await page.query_selector('a[href*="/dl/"][href*="convertedTo=pdf"]')
 
                         if not download_link:
@@ -225,35 +228,37 @@ class ZLibraryAutoUploader:
                             if all_links:
                                 download_link = all_links[0]
                                 href = await download_link.get_attribute('href')
-                                print(f"✅ 找到下载链接: {href}")
+                                print(f"✅ Found download link: {href}")
 
                     else:
-                        # 备选：尝试 EPUB
+                        # Fallback: try EPUB
                         convert_button = await page.query_selector(convert_selector_epub)
 
                         if convert_button:
-                            print("📝 检测到 EPUB 转换按钮")
+                            print("📝 EPUB convert button detected")
                             downloaded_format = 'epub'
                             await convert_button.evaluate('el => el.click()')
-                            print("✅ 已点击 EPUB 转换按钮")
+                            print("✅ Clicked the EPUB convert button")
 
-                            # 等待转换完成
-                            print("⏳ 等待 EPUB 转换完成...")
+                            # Wait for the conversion to complete
+                            print("⏳ Waiting for the EPUB conversion to complete...")
                             for i in range(60):
                                 await asyncio.sleep(1)
                                 try:
+                                    # Chinese "转换为" ("converted to") matches the live status message
                                     message = await page.query_selector('.message:has-text("转换为")')
                                     if message:
                                         message_text = await message.inner_text()
+                                        # Chinese "完成" means "done/complete"
                                         if 'epub' in message_text.lower() and '完成' in message_text:
-                                            print("✅ EPUB 转换已完成!")
+                                            print("✅ EPUB conversion complete!")
                                             break
                                 except:
                                     pass
                                 if i % 10 == 0 and i > 0:
-                                    print(f"   ⏳ 等待中... {i}秒")
+                                    print(f"   ⏳ Waiting... {i}s")
 
-                            # 查找下载链接
+                            # Look for the download link
                             download_link = await page.query_selector('a[href*="/dl/"][href*="convertedTo=epub"]')
 
                             if not download_link:
@@ -261,12 +266,13 @@ class ZLibraryAutoUploader:
                                 if all_links:
                                     download_link = all_links[0]
                                     href = await download_link.get_attribute('href')
-                                    print(f"✅ 找到下载链接: {href}")
+                                    print(f"✅ Found download link: {href}")
 
-                # 如果还是没找到，尝试直接下载链接
+                # If still not found, try a direct download link
                 if not download_link:
-                    print("🔍 未检测到转换按钮，查找直接下载链接...")
+                    print("🔍 No convert button detected, looking for a direct download link...")
 
+                    # Chinese "下载" ("Download") selector text matches the live page
                     selectors = [
                         'a[href*="/dl/"]',
                         'a:has-text("下载")',
@@ -282,12 +288,12 @@ class ZLibraryAutoUploader:
                                     href = await link.get_attribute('href')
                                     if href and '/dl/' in href:
                                         download_link = link
-                                        # 从 URL 判断格式
+                                        # Infer the format from the URL
                                         if 'pdf' in href.lower():
                                             downloaded_format = 'pdf'
                                         elif 'epub' in href.lower():
                                             downloaded_format = 'epub'
-                                        print(f"✅ 找到下载链接: {href} (格式: {downloaded_format})")
+                                        print(f"✅ Found download link: {href} (format: {downloaded_format})")
                                         break
                                 if download_link:
                                     break
@@ -295,40 +301,40 @@ class ZLibraryAutoUploader:
                             continue
 
                 if not download_link:
-                    print("❌ 未找到下载链接")
+                    print("❌ No download link found")
                     await browser.close()
                     return None
 
-                # 点击下载
-                print("⬇️  步骤2: 点击下载链接...")
+                # Click to download
+                print("⬇️  Step 2: clicking the download link...")
 
                 try:
                     await download_link.evaluate('el => el.click()')
-                    print("✅ 点击成功")
+                    print("✅ Click succeeded")
                 except Exception as e:
-                    print(f"❌ 点击失败: {e}")
+                    print(f"❌ Click failed: {e}")
                     await browser.close()
                     return None
 
-                # 等待下载
-                print("⏳ 步骤3: 等待下载完成...")
+                # Wait for the download
+                print("⏳ Step 3: waiting for the download to complete...")
                 await asyncio.sleep(20)
 
-                # 检查结果
+                # Check the result
                 if download_path and download_path.exists():
                     file_size = download_path.stat().st_size / 1024
-                    print(f"✅ 下载成功!")
-                    print(f"   格式: {downloaded_format.upper() if downloaded_format else '未知'}")
-                    print(f"   文件: {download_path.name}")
-                    print(f"   路径: {download_path}")
-                    print(f"   大小: {file_size:.1f} KB")
+                    print(f"✅ Download successful!")
+                    print(f"   Format: {downloaded_format.upper() if downloaded_format else 'Unknown'}")
+                    print(f"   File: {download_path.name}")
+                    print(f"   Path: {download_path}")
+                    print(f"   Size: {file_size:.1f} KB")
                     await browser.close()
                     return download_path, downloaded_format
 
-                # 备选：检查下载目录
-                print("🔍 检查下载目录...")
+                # Fallback: scan the downloads directory
+                print("🔍 Checking the downloads directory...")
 
-                # 根据格式查找文件
+                # Look for a file based on the format
                 if downloaded_format == 'pdf':
                     pattern = "*.pdf"
                 else:
@@ -342,46 +348,46 @@ class ZLibraryAutoUploader:
 
                     if file_age < 120:
                         file_size = latest_file.stat().st_size / 1024
-                        print(f"✅ 下载成功!")
-                        print(f"   格式: {downloaded_format.upper() if downloaded_format else '未知'}")
-                        print(f"   文件: {latest_file.name}")
-                        print(f"   路径: {latest_file}")
-                        print(f"   大小: {file_size:.1f} KB")
+                        print(f"✅ Download successful!")
+                        print(f"   Format: {downloaded_format.upper() if downloaded_format else 'Unknown'}")
+                        print(f"   File: {latest_file.name}")
+                        print(f"   Path: {latest_file}")
+                        print(f"   Size: {file_size:.1f} KB")
                         await browser.close()
                         return latest_file, downloaded_format
 
-                print("❌ 未找到下载的文件")
+                print("❌ No downloaded file found")
                 await browser.close()
                 return None, None
 
             except Exception as e:
-                print(f"❌ 下载失败: {e}")
+                print(f"❌ Download failed: {e}")
                 import traceback
                 traceback.print_exc()
                 await browser.close()
                 return None, None
 
     def count_words(self, text: str) -> int:
-        """统计中英文单词数"""
+        """Count words for both Chinese and English text"""
         import re
-        # 匹配中文字符
+        # Match Chinese characters
         chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-        # 匹配英文单词
+        # Match English words
         english_words = len(re.findall(r'\b[a-zA-Z]+\b', text))
         return chinese_chars + english_words
 
     def split_markdown_file(self, file_path: Path, max_words: int = 350000) -> list[Path]:
-        """分割大 Markdown 文件为多个小文件"""
-        print(f"📊 文件过大，开始分割...")
+        """Split a large Markdown file into several smaller files"""
+        print(f"📊 File too large, starting split...")
 
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         total_words = self.count_words(content)
-        print(f"   总词数: {total_words:,}")
-        print(f"   每块最大: {max_words:,} 词")
+        print(f"   Total words: {total_words:,}")
+        print(f"   Max per chunk: {max_words:,} words")
 
-        # 按章节分割（寻找 ## 或 ### 标题）
+        # Split by chapter (looking for ## or ### headings)
         import re
         chapters = re.split(r'\n(?=#{1,3}\s)', content)
 
@@ -393,16 +399,16 @@ class ZLibraryAutoUploader:
         for i, chapter in enumerate(chapters):
             chapter_words = self.count_words(chapter)
 
-            # 如果单个章节就超过限制，需要进一步分割
+            # If a single chapter exceeds the limit, split it further
             if chapter_words > max_words:
-                # 先保存当前 chunk
+                # First save the current chunk
                 if current_chunk:
                     chunks.append(current_chunk)
                     chunk_num += 1
                     current_chunk = ""
                     current_words = 0
 
-                # 分割大章节（按段落）
+                # Split the large chapter (by paragraph)
                 paragraphs = chapter.split('\n\n')
                 temp_chunk = ""
                 temp_words = 0
@@ -423,21 +429,21 @@ class ZLibraryAutoUploader:
                     current_words = temp_words
 
             elif current_words + chapter_words > max_words:
-                # 当前 chunk 已满，保存并开始新的
+                # The current chunk is full; save it and start a new one
                 chunks.append(current_chunk)
                 chunk_num += 1
                 current_chunk = chapter + "\n\n"
                 current_words = chapter_words
             else:
-                # 添加到当前 chunk
+                # Append to the current chunk
                 current_chunk += chapter + "\n\n"
                 current_words += chapter_words
 
-        # 保存最后一个 chunk
+        # Save the last chunk
         if current_chunk:
             chunks.append(current_chunk)
 
-        # 写入文件
+        # Write the files
         chunk_files = []
         stem = file_path.stem
         for i, chunk in enumerate(chunks, 1):
@@ -446,31 +452,31 @@ class ZLibraryAutoUploader:
                 f.write(chunk)
             chunk_files.append(chunk_file)
             chunk_words = self.count_words(chunk)
-            print(f"   ✅ Part {i}/{len(chunks)}: {chunk_words:,} 词")
+            print(f"   ✅ Part {i}/{len(chunks)}: {chunk_words:,} words")
 
         return chunk_files
 
     def convert_to_txt(self, file_path: Path, file_format: str = None) -> Path | list[Path]:
-        """转换文件为 TXT 或直接使用 PDF"""
+        """Convert the file to TXT, or use the PDF directly"""
         print("")
         print("="*70)
-        print("📝 处理文件")
+        print("📝 Processing file")
         print("="*70)
 
         file_ext = file_path.suffix.lower()
 
-        # 如果是 PDF，直接使用（方案 A）
+        # If it is a PDF, use it directly (option A)
         if file_ext == '.pdf' or file_format == 'pdf':
-            print("✅ 检测到 PDF 格式，直接使用")
-            print(f"   文件: {file_path.name}")
+            print("✅ PDF format detected, using it directly")
+            print(f"   File: {file_path.name}")
             return file_path
 
         md_file = self.temp_dir / f"{file_path.stem}.md"
 
-        # 如果是 EPUB，转换为 Markdown
+        # If it is an EPUB, convert it to Markdown
         if file_ext == '.epub':
-            print("📖 检测到 EPUB 格式，转换为 Markdown...")
-            # 获取脚本所在目录
+            print("📖 EPUB format detected, converting to Markdown...")
+            # Get the directory this script lives in
             script_dir = Path(__file__).parent
             convert_script = script_dir / "convert_epub.py"
 
@@ -479,49 +485,49 @@ class ZLibraryAutoUploader:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
             if result.returncode != 0:
-                print(f"❌ 转换失败: {result.stderr}")
+                print(f"❌ Conversion failed: {result.stderr}")
                 return file_path
 
-            print(f"✅ 转换成功: {md_file}")
+            print(f"✅ Conversion successful: {md_file}")
 
-            # 检查文件大小，如果过大则分割
+            # Check the file size and split it if it is too large
             word_count = self.count_words(open(md_file, 'r', encoding='utf-8').read())
-            print(f"📊 词数统计: {word_count:,}")
+            print(f"📊 Word count: {word_count:,}")
 
             if word_count > 350000:
-                print(f"⚠️  文件超过 350k 词（NotebookLM CLI 限制）")
+                print(f"⚠️  File exceeds 350k words (NotebookLM CLI limit)")
                 return self.split_markdown_file(md_file)
             else:
                 return md_file
 
         else:
-            print(f"ℹ️  文件格式: {file_ext}，直接使用")
+            print(f"ℹ️  File format: {file_ext}, using it directly")
             return file_path
 
     def upload_to_notebooklm(self, file_path: Path | list[Path], title: str = None) -> dict:
-        """上传到 NotebookLM"""
+        """Upload to NotebookLM"""
         print("")
         print("="*70)
-        print("⬆️  上传到 NotebookLM")
+        print("⬆️  Uploading to NotebookLM")
         print("="*70)
 
-        # 处理文件列表（分割后的文件）
+        # Handle a list of files (the split chunks)
         if isinstance(file_path, list):
-            print(f"📦 检测到 {len(file_path)} 个文件分块")
+            print(f"📦 Detected {len(file_path)} file chunks")
 
-            # 使用第一个文件确定书名
+            # Use the first file to determine the title
             first_file = file_path[0]
             if not title:
                 title = first_file.stem.replace('_part1', '').replace('_', ' ')
-                # 清理文件名
+                # Clean up the filename
                 title = re.sub(r'\[.*?\]', '', title)
                 title = re.sub(r'\(.*?\)', '', title)
                 title = re.sub(r'\s+', ' ', title).strip()
                 if len(title) > 50:
                     title = title[:50] + "..."
 
-            # 创建笔记本
-            print(f"📚 创建笔记本: {title}")
+            # Create the notebook
+            print(f"📚 Creating notebook: {title}")
             import subprocess
             import json
 
@@ -534,33 +540,33 @@ class ZLibraryAutoUploader:
             try:
                 data = json.loads(result.stdout)
                 notebook_id = data['notebook']['id']
-                print(f"✅ 笔记本已创建 (ID: {notebook_id[:8]}...)")
+                print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
             except:
-                return {"success": False, "error": "解析笔记本 ID 失败"}
+                return {"success": False, "error": "Failed to parse the notebook ID"}
 
-            # 设置上下文
-            print(f"🎯 设置笔记本上下文...")
+            # Set the context
+            print(f"🎯 Setting the notebook context...")
             cmd = f"notebooklm use {notebook_id}"
             subprocess.run(cmd, shell=True, capture_output=True)
 
-            # 上传所有分块
+            # Upload all chunks
             source_ids = []
             for i, chunk_file in enumerate(file_path, 1):
-                print(f"📄 上传分块 {i}/{len(file_path)}: {chunk_file.name}")
+                print(f"📄 Uploading chunk {i}/{len(file_path)}: {chunk_file.name}")
                 cmd = f"notebooklm source add '{chunk_file}' --json"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
                 if result.returncode != 0:
-                    print(f"⚠️  分块 {i} 上传失败: {result.stderr}")
+                    print(f"⚠️  Chunk {i} upload failed: {result.stderr}")
                     continue
 
                 try:
                     data = json.loads(result.stdout)
                     source_id = data['source']['id']
                     source_ids.append(source_id)
-                    print(f"   ✅ 成功 (ID: {source_id[:8]}...)")
+                    print(f"   ✅ Success (ID: {source_id[:8]}...)")
                 except:
-                    print(f"⚠️  分块 {i} 解析失败")
+                    print(f"⚠️  Chunk {i} parsing failed")
 
             return {
                 "success": len(source_ids) > 0,
@@ -570,20 +576,20 @@ class ZLibraryAutoUploader:
                 "chunks": len(file_path)
             }
 
-        # 单文件上传
-        # 确定书名
+        # Single-file upload
+        # Determine the title
         if not title:
             title = file_path.stem.replace('_', ' ')
-            # 清理文件名
+            # Clean up the filename
             title = re.sub(r'\[.*?\]', '', title)
             title = re.sub(r'\(.*?\)', '', title)
             title = re.sub(r'\s+', ' ', title).strip()
-            # 截断过长的书名
+            # Truncate an overly long title
             if len(title) > 50:
                 title = title[:50] + "..."
 
-        # 创建笔记本
-        print(f"📚 创建笔记本: {title}")
+        # Create the notebook
+        print(f"📚 Creating notebook: {title}")
         import subprocess
         import json
 
@@ -596,17 +602,17 @@ class ZLibraryAutoUploader:
         try:
             data = json.loads(result.stdout)
             notebook_id = data['notebook']['id']
-            print(f"✅ 笔记本已创建 (ID: {notebook_id[:8]}...)")
+            print(f"✅ Notebook created (ID: {notebook_id[:8]}...)")
         except:
-            return {"success": False, "error": "解析笔记本 ID 失败"}
+            return {"success": False, "error": "Failed to parse the notebook ID"}
 
-        # 设置上下文
-        print(f"🎯 设置笔记本上下文...")
+        # Set the context
+        print(f"🎯 Setting the notebook context...")
         cmd = f"notebooklm use {notebook_id}"
         subprocess.run(cmd, shell=True, capture_output=True)
 
-        # 上传文件
-        print(f"📄 上传文件...")
+        # Upload the file
+        print(f"📄 Uploading file...")
         cmd = f"notebooklm source add '{file_path}' --json"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
@@ -616,7 +622,7 @@ class ZLibraryAutoUploader:
         try:
             data = json.loads(result.stdout)
             source_id = data['source']['id']
-            print(f"✅ 上传成功 (ID: {source_id[:8]}...)")
+            print(f"✅ Upload successful (ID: {source_id[:8]}...)")
 
             return {
                 "success": True,
@@ -625,62 +631,62 @@ class ZLibraryAutoUploader:
                 "title": title
             }
         except:
-            return {"success": False, "error": "解析来源 ID 失败"}
+            return {"success": False, "error": "Failed to parse the source ID"}
 
 
 async def main():
-    """主函数"""
+    """Main entry point"""
     if len(sys.argv) < 2:
-        print("Z-Library 全自动下载并上传到 NotebookLM")
+        print("Z-Library fully automated download and upload to NotebookLM")
         print("")
-        print("用法: python3 auto_download_and_upload.py <Z-Library URL>")
+        print("Usage: python3 scripts/upload.py <Z-Library URL>")
         sys.exit(1)
 
     url = sys.argv[1]
     uploader = ZLibraryAutoUploader()
 
-    # 下载
+    # Download
     downloaded_file, file_format = await uploader.download_from_zlibrary(url)
 
     if not downloaded_file or not downloaded_file.exists():
         print("")
         print("="*70)
-        print("❌ 下载失败，无法继续")
+        print("❌ Download failed, cannot continue")
         print("="*70)
         sys.exit(1)
 
-    # 转换
+    # Convert
     final_file = uploader.convert_to_txt(downloaded_file, file_format)
 
-    # 上传
+    # Upload
     result = uploader.upload_to_notebooklm(final_file)
 
     print("")
     print("="*70)
     if result['success']:
-        print("🎉 全流程完成！")
+        print("🎉 Full workflow complete!")
         print("="*70)
-        print(f"📚 书名: {result['title']}")
-        print(f"🆔 笔记本 ID: {result['notebook_id']}")
+        print(f"📚 Title: {result['title']}")
+        print(f"🆔 Notebook ID: {result['notebook_id']}")
 
-        # 处理分块上传的结果
+        # Handle the result of a chunked upload
         if 'chunks' in result:
-            print(f"📦 分块数: {result['chunks']}")
-            print(f"📄 成功上传 {len(result['source_ids'])}/{result['chunks']} 个分块")
-            print("   来源 IDs:")
+            print(f"📦 Chunks: {result['chunks']}")
+            print(f"📄 Successfully uploaded {len(result['source_ids'])}/{result['chunks']} chunks")
+            print("   Source IDs:")
             for sid in result['source_ids']:
                 print(f"      - {sid}")
         else:
-            print(f"📄 来源 ID: {result['source_id']}")
+            print(f"📄 Source ID: {result['source_id']}")
 
         print("")
-        print("💡 下一步:")
+        print("💡 Next steps:")
         print(f"   notebooklm use {result['notebook_id']}")
-        print(f"   notebooklm ask \"这本书的核心观点是什么？\"")
+        print(f"   notebooklm ask \"What are the core ideas of this book?\"")
     else:
-        print("❌ 上传失败")
+        print("❌ Upload failed")
         print("="*70)
-        print(f"错误: {result.get('error', '未知错误')}")
+        print(f"Error: {result.get('error', 'Unknown error')}")
         sys.exit(1)
 
 
